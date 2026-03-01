@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medical RAG Assistant</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-primary: #0B1120;
+            --bg-secondary: #111827;
+            --bg-card: #1A2332;
+            --bg-input: #0F1A2A;
+            --border-subtle: rgba(56, 189, 248, 0.08);
+            --border-focus: rgba(56, 189, 248, 0.3);
+            --accent: #38BDF8;
+            --accent-glow: rgba(56, 189, 248, 0.15);
+            --accent-warm: #818CF8;
+            --text-primary: #E2E8F0;
+            --text-secondary: #94A3B8;
+            --text-muted: #64748B;
+            --success: #34D399;
+            --error: #F87171;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'DM Sans', -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* ── Ambient background ── */
+        body::before {
+            content: '';
+            position: fixed;
+            top: -40%; left: -20%;
+            width: 80%; height: 80%;
+            background: radial-gradient(ellipse, rgba(56,189,248,0.04) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+        body::after {
+            content: '';
+            position: fixed;
+            bottom: -30%; right: -10%;
+            width: 60%; height: 70%;
+            background: radial-gradient(ellipse, rgba(129,140,248,0.03) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ── Layout ── */
+        .app-container {
+            position: relative;
+            z-index: 1;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 24px;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* ── Header ── */
+        header {
+            text-align: center;
+            padding: 56px 0 32px;
+            animation: fadeDown 0.8s ease-out;
+        }
+        @keyframes fadeDown {
+            from { opacity: 0; transform: translateY(-16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .logo-mark {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 56px; height: 56px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-warm));
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(56,189,248,0.2);
+        }
+        .logo-mark svg { width: 28px; height: 28px; fill: #fff; }
+        header h1 {
+            font-family: 'DM Serif Display', Georgia, serif;
+            font-size: 2.25rem;
+            font-weight: 400;
+            letter-spacing: -0.02em;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+        header p {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            font-weight: 300;
+            max-width: 480px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        /* ── Input area ── */
+        .input-section {
+            margin-bottom: 32px;
+            animation: fadeUp 0.8s ease-out 0.15s both;
+        }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .input-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 20px;
+            padding: 24px;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        .input-card:focus-within {
+            border-color: var(--border-focus);
+            box-shadow: 0 0 0 4px var(--accent-glow), 0 8px 40px rgba(0,0,0,0.3);
+        }
+        .input-label {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: 12px;
+        }
+        textarea {
+            width: 100%;
+            min-height: 100px;
+            background: var(--bg-input);
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            padding: 16px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 1rem;
+            color: var(--text-primary);
+            line-height: 1.6;
+            resize: vertical;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        textarea::placeholder { color: var(--text-muted); }
+        textarea:focus { border-color: var(--border-focus); }
+
+        .input-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 16px;
+        }
+        .char-count {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        /* ── Submit button ── */
+        .btn-submit {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 28px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-warm));
+            border: none;
+            border-radius: 12px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #fff;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+            box-shadow: 0 4px 20px rgba(56,189,248,0.25);
+        }
+        .btn-submit:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 28px rgba(56,189,248,0.35);
+        }
+        .btn-submit:active:not(:disabled) { transform: translateY(0); }
+        .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-submit svg { width: 18px; height: 18px; fill: currentColor; }
+
+        /* ── Sample questions ── */
+        .samples {
+            margin-bottom: 32px;
+            animation: fadeUp 0.8s ease-out 0.3s both;
+        }
+        .samples-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+        .samples-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .sample-btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            padding: 14px 16px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            text-align: left;
+            line-height: 1.5;
+            transition: background 0.25s, border-color 0.25s, color 0.25s;
+        }
+        .sample-btn:hover {
+            background: var(--bg-secondary);
+            border-color: var(--border-focus);
+            color: var(--text-primary);
+        }
+
+        /* ── Conversation / Results ── */
+        .conversation { flex: 1; padding-bottom: 48px; }
+
+        .message {
+            margin-bottom: 24px;
+            animation: messageIn 0.5s ease-out;
+        }
+        @keyframes messageIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* User message */
+        .message-user {
+            display: flex;
+            justify-content: flex-end;
+        }
+        .message-user .bubble {
+            background: linear-gradient(135deg, rgba(56,189,248,0.12), rgba(129,140,248,0.08));
+            border: 1px solid rgba(56,189,248,0.15);
+            border-radius: 18px 18px 4px 18px;
+            padding: 16px 20px;
+            max-width: 75%;
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        /* Assistant message */
+        .message-assistant {
+            display: flex;
+            gap: 14px;
+        }
+        .assistant-avatar {
+            flex-shrink: 0;
+            width: 36px; height: 36px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-warm));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 2px;
+        }
+        .assistant-avatar svg { width: 18px; height: 18px; fill: #fff; }
+
+        .assistant-body { flex: 1; min-width: 0; }
+        .assistant-body .bubble {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 4px 18px 18px 18px;
+            padding: 20px 22px;
+            font-size: 0.95rem;
+            line-height: 1.75;
+            color: var(--text-primary);
+        }
+        .assistant-body .bubble p { margin-bottom: 10px; }
+        .assistant-body .bubble p:last-child { margin-bottom: 0; }
+
+        .response-meta {
+            display: flex;
+            gap: 16px;
+            margin-top: 10px;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+        }
+        .response-meta span { display: inline-flex; align-items: center; gap: 4px; }
+        .response-meta svg { width: 13px; height: 13px; fill: var(--text-muted); }
+
+        /* Sources toggle */
+        .sources-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 12px;
+            padding: 6px 14px;
+            background: transparent;
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: border-color 0.2s, color 0.2s;
+        }
+        .sources-toggle:hover { border-color: var(--border-focus); color: var(--accent); }
+        .sources-toggle svg { width: 14px; height: 14px; fill: currentColor; transition: transform 0.3s; }
+        .sources-toggle.open svg { transform: rotate(180deg); }
+
+        .sources-panel {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+        .sources-panel.open { max-height: 600px; }
+        .sources-list {
+            margin-top: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .source-item {
+            background: var(--bg-input);
+            border: 1px solid var(--border-subtle);
+            border-radius: 10px;
+            padding: 14px 16px;
+            font-size: 0.82rem;
+            line-height: 1.6;
+            color: var(--text-secondary);
+        }
+        .source-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--accent);
+            margin-bottom: 6px;
+        }
+
+        /* ── Loading ── */
+        .loading-indicator {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 20px 22px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 4px 18px 18px 18px;
+        }
+        .typing-dots { display: flex; gap: 5px; }
+        .typing-dots span {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--accent);
+            opacity: 0.3;
+            animation: pulse 1.4s ease-in-out infinite;
+        }
+        .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes pulse {
+            0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+            40% { opacity: 1; transform: scale(1); }
+        }
+        .loading-text {
+            font-size: 0.88rem;
+            color: var(--text-secondary);
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 640px) {
+            header { padding: 36px 0 24px; }
+            header h1 { font-size: 1.75rem; }
+            .samples-grid { grid-template-columns: 1fr; }
+            .message-user .bubble { max-width: 90%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+
+        <!-- Header -->
+        <header>
+            <div class="logo-mark">
+                <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+            </div>
+            <h1>Medical RAG Assistant</h1>
+            <p>AI-powered medical Q&A backed by the Merck Manual. Ask any clinical, diagnostic, or treatment question.</p>
+        </header>
+
+        <!-- Input Section -->
+        <div class="input-section">
+            <div class="input-card">
+                <label class="input-label" for="question-input">Your Question</label>
+                <textarea
+                    id="question-input"
+                    placeholder="e.g., What are the common symptoms and treatments for pulmonary embolism?"
+                    rows="3"
+                ></textarea>
+                <div class="input-footer">
+                    <span class="char-count" id="char-count">0 characters</span>
+                    <button class="btn-submit" id="submit-btn" onclick="submitQuestion()">
+                        <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                        Ask Question
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sample Questions -->
+        <div class="samples" id="samples-section">
+            <div class="samples-label">Try a sample question</div>
+            <div class="samples-grid">
+                <button class="sample-btn" onclick="useSample(this)">What is the protocol for managing sepsis in a critical care unit?</button>
+                <button class="sample-btn" onclick="useSample(this)">What are the common symptoms and treatments for pulmonary embolism?</button>
+                <button class="sample-btn" onclick="useSample(this)">What are the diagnostic steps for suspected endocrine disorders?</button>
+                <button class="sample-btn" onclick="useSample(this)">What are the effective treatments for sudden patchy hair loss?</button>
+            </div>
+        </div>
+
+        <!-- Conversation Area -->
+        <div class="conversation" id="conversation"></div>
+    </div>
+
+    <script>
+        const input = document.getElementById('question-input');
+        const charCount = document.getElementById('char-count');
+        const submitBtn = document.getElementById('submit-btn');
+        const conversation = document.getElementById('conversation');
+        const samplesSection = document.getElementById('samples-section');
+
+        // Character count
+        input.addEventListener('input', () => {
+            charCount.textContent = `${input.value.length} characters`;
+        });
+
+        // Enter to submit (Shift+Enter for newline)
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                submitQuestion();
+            }
+        });
+
+        function useSample(btn) {
+            input.value = btn.textContent;
+            charCount.textContent = `${input.value.length} characters`;
+            input.focus();
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function formatAnswer(text) {
+            // Convert line breaks to paragraphs
+            return text
+                .split(/\n\n+/)
+                .filter(p => p.trim())
+                .map(p => `<p>${escapeHtml(p.trim())}</p>`)
+                .join('');
+        }
+
+        async function submitQuestion() {
+            const question = input.value.trim();
+            if (!question) return;
+
+            // Disable input
+            submitBtn.disabled = true;
+            input.disabled = true;
+
+            // Hide samples after first question
+            samplesSection.style.display = 'none';
+
+            // Add user message
+            conversation.innerHTML += `
+                <div class="message message-user">
+                    <div class="bubble">${escapeHtml(question)}</div>
+                </div>
+            `;
+
+            // Add loading indicator
+            const loadingId = 'loading-' + Date.now();
+            conversation.innerHTML += `
+                <div class="message message-assistant" id="${loadingId}">
+                    <div class="assistant-avatar">
+                        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+                    </div>
+                    <div class="assistant-body">
+                        <div class="loading-indicator">
+                            <div class="typing-dots">
+                                <span></span><span></span><span></span>
+                            </div>
+                            <span class="loading-text">Searching the medical manual and generating a response…</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Scroll to loading
+            conversation.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'end' });
+
+            // Clear input
+            input.value = '';
+            charCount.textContent = '0 characters';
+
+            try {
+                const res = await fetch('/api/ask', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question }),
+                });
+
+                if (!res.ok) throw new Error(`Server error: ${res.status}`);
+                const data = await res.json();
+
+                // Build sources HTML
+                const sourcesId = 'sources-' + Date.now();
+                let sourcesHtml = '';
+                if (data.sources && data.sources.length > 0) {
+                    sourcesHtml = `
+                        <button class="sources-toggle" onclick="toggleSources('${sourcesId}', this)">
+                            <svg viewBox="0 0 24 24"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg>
+                            View ${data.sources.length} source(s)
+                        </button>
+                        <div class="sources-panel" id="${sourcesId}">
+                            <div class="sources-list">
+                                ${data.sources.map((s, i) => `
+                                    <div class="source-item">
+                                        <div class="source-label">Source ${i + 1}</div>
+                                        ${escapeHtml(s)}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // Replace loading with response
+                document.getElementById(loadingId).outerHTML = `
+                    <div class="message message-assistant">
+                        <div class="assistant-avatar">
+                            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+                        </div>
+                        <div class="assistant-body">
+                            <div class="bubble">${formatAnswer(data.answer)}</div>
+                            <div class="response-meta">
+                                <span>
+                                    <svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"/><path d="M12.5 7H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+                                    ${data.response_time}s
+                                </span>
+                                <span>
+                                    <svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+                                    ${data.sources.length} sources
+                                </span>
+                            </div>
+                            ${sourcesHtml}
+                        </div>
+                    </div>
+                `;
+
+            } catch (err) {
+                document.getElementById(loadingId).outerHTML = `
+                    <div class="message message-assistant">
+                        <div class="assistant-avatar" style="background: linear-gradient(135deg, var(--error), #DC2626);">
+                            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+                        </div>
+                        <div class="assistant-body">
+                            <div class="bubble" style="border-color: rgba(248,113,113,0.15);">
+                                <p>Sorry, something went wrong while processing your question. Please try again.</p>
+                                <p style="font-size:0.82rem;color:var(--text-muted);">${escapeHtml(err.message)}</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } finally {
+                submitBtn.disabled = false;
+                input.disabled = false;
+                input.focus();
+                // Scroll to latest message
+                conversation.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            }
+        }
+
+        function toggleSources(id, btn) {
+            const panel = document.getElementById(id);
+            panel.classList.toggle('open');
+            btn.classList.toggle('open');
+        }
+    </script>
+</body>
+</html>
