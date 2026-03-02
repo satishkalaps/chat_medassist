@@ -28,7 +28,7 @@ PDF_PATH = os.path.join(DATA_DIR, "medical_diagnosis_manual.pdf")
 
 # Model settings
 MODEL_REPO = "TheBloke/Mistral-7B-Instruct-v0.2-GGUF"
-MODEL_FILE = "mistral-7b-instruct-v0.2.Q6_K.gguf"
+MODEL_FILE = "mistral-7b-instruct-v0.2.Q2_K.gguf"
 
 # Chunking settings
 CHUNK_SIZE = 512
