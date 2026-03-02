@@ -37,7 +37,10 @@ app = FastAPI(
 )
 
 # Serve static files (HTML, CSS, JS)
-app.mount("/static", StaticFiles(directory="static"), name="static")
+import pathlib
+static_dir = pathlib.Path(__file__).parent / "static"
+static_dir.mkdir(exist_ok=True)
+app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
 
 # ---------------------------------------------------------------------------
