@@ -38,10 +38,8 @@ app = FastAPI(
 
 # Serve static files (HTML, CSS, JS)
 import pathlib
-static_dir = pathlib.Path(__file__).parent / "static"
-static_dir.mkdir(exist_ok=True)
-app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
-
+BASE_PATH = pathlib.Path(__file__).parent
+app.mount("/static", StaticFiles(directory=str(BASE_PATH / "static")), name="static")
 
 # ---------------------------------------------------------------------------
 # Request / Response models
@@ -64,8 +62,7 @@ class AnswerResponse(BaseModel):
 @app.get("/")
 async def serve_frontend():
     """Serve the main HTML page."""
-    return FileResponse("static/index.html")
-
+    return FileResponse(str(BASE_PATH / "static" / "index.html"))
 
 @app.post("/api/ask", response_model=AnswerResponse)
 async def ask_question(request: QuestionRequest):
