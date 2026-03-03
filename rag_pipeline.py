@@ -1,12 +1,12 @@
 """
-RAG Pipeline Module
+RAG Pipeline Module (Groq API version)
 Refactored from NLP_RAG_Project_Notebook.ipynb
 
 This module handles:
 - PDF loading and chunking
 - Embedding generation
 - Vector store creation and retrieval
-- LLM-based question answering with RAG
+- LLM-based question answering with RAG via Groq API
 """
 
 import os
@@ -14,8 +14,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyMuPDFLoader
 from langchain_community.embeddings.sentence_transformer import SentenceTransformerEmbeddings
 from langchain_community.vectorstores import Chroma
-from huggingface_hub import hf_hub_download
-from llama_cpp import Llama
+from groq import Groq
 
 
 # ---------------------------------------------------------------------------
@@ -26,9 +25,8 @@ DATA_DIR = os.path.join(BASE_DIR, "data")
 VECTOR_DB_DIR = os.path.join(DATA_DIR, "medical_db")
 PDF_PATH = os.path.join(DATA_DIR, "medical_diagnosis_manual.pdf")
 
-# Model settings
-MODEL_REPO = "TheBloke/Mistral-7B-Instruct-v0.2-GGUF"
-MODEL_FILE = "mistral-7b-instruct-v0.2.Q2_K.gguf"
+# Groq model (same Mistral model family, but run via API)
+GROQ_MODEL = "mixtral-8x7b-32768"
 
 # Chunking settings
 CHUNK_SIZE = 512
@@ -68,11 +66,11 @@ Here are some documents that are relevant to the question mentioned below.
 class RAGPipeline:
     """
     Encapsulates the full RAG pipeline:
-    PDF → Chunks → Embeddings → Vector Store → Retriever → LLM Response
+    PDF → Chunks → Embeddings → Vector Store → Retriever → Groq LLM Response
     """
 
     def __init__(self):
-        self.llm = None
+        self.groq_client = None
         self.vectorstore = None
         self.retriever = None
         self.embedding_model = None
@@ -82,33 +80,26 @@ class RAGPipeline:
     # Initialization
     # ------------------------------------------------------------------
     def initialize(self):
-        """Load all models and build/load the vector store."""
+        """Load embedding model, build/load vector store, and set up Groq client."""
         if self._initialized:
             return
 
-        print("[1/4] Loading embedding model...")
+        print("[1/3] Loading embedding model...")
         self.embedding_model = SentenceTransformerEmbeddings(
             model_name=EMBEDDING_MODEL_NAME
         )
 
-        print("[2/4] Building / loading vector store...")
+        print("[2/3] Building / loading vector store...")
         self._build_vectorstore()
 
-        print("[3/4] Downloading LLM (this may take a while on first run)...")
-        model_path = hf_hub_download(
-            repo_id=MODEL_REPO,
-            filename=MODEL_FILE,
-        )
-
-        print("[4/4] Loading LLM into memory...")
-        # Detect GPU layers: use 0 for CPU-only environments
-        n_gpu = int(os.environ.get("N_GPU_LAYERS", 0))
-        self.llm = Llama(
-            model_path=model_path,
-            n_ctx=4096,
-            n_gpu_layers=n_gpu,
-            n_batch=512,
-        )
+        print("[3/3] Connecting to Groq API...")
+        api_key = os.environ.get("GROQ_API_KEY")
+        if not api_key:
+            raise ValueError(
+                "GROQ_API_KEY environment variable is not set. "
+                "Get a free key at https://console.groq.com"
+            )
+        self.groq_client = Groq(api_key=api_key)
 
         self._initialized = True
         print("✓ RAG Pipeline ready!")
@@ -162,9 +153,7 @@ class RAGPipeline:
         self,
         user_input: str,
         max_tokens: int = 1024,
-        temperature: float = 0,
-        top_p: float = 0.95,
-        top_k: int = 50,
+        temperature: float = 0.0,
     ) -> dict:
         """
         Run the full RAG pipeline for a user question.
@@ -183,18 +172,19 @@ class RAGPipeline:
         # 2. Build the prompt
         user_message = QNA_USER_MESSAGE_TEMPLATE.replace("{context}", context_for_query)
         user_message = user_message.replace("{question}", user_input)
-        prompt = QNA_SYSTEM_MESSAGE + "\n" + user_message
 
-        # 3. Generate LLM response
+        # 3. Generate response via Groq API
         try:
-            llm_output = self.llm(
-                prompt=prompt,
+            chat_completion = self.groq_client.chat.completions.create(
+                messages=[
+                    {"role": "system", "content": QNA_SYSTEM_MESSAGE},
+                    {"role": "user", "content": user_message},
+                ],
+                model=GROQ_MODEL,
                 max_tokens=max_tokens,
                 temperature=temperature,
-                top_p=top_p,
-                top_k=top_k,
             )
-            answer = llm_output["choices"][0]["text"].strip()
+            answer = chat_completion.choices[0].message.content.strip()
         except Exception as e:
             answer = f"Sorry, I encountered the following error:\n{e}"
 
