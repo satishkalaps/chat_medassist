@@ -84,15 +84,15 @@ class RAGPipeline:
         if self._initialized:
             return
 
-        print("[1/3] Loading embedding model...")
+        print("[1/3] Loading embedding model...", flush=True)
         self.embedding_model = SentenceTransformerEmbeddings(
             model_name=EMBEDDING_MODEL_NAME
         )
 
-        print("[2/3] Building / loading vector store...")
+        print("[2/3] Building / loading vector store...", flush=True)
         self._build_vectorstore()
 
-        print("[3/3] Connecting to Groq API...")
+        print("[3/3] Connecting to Groq API...", flush=True)
         api_key = os.environ.get("GROQ_API_KEY")
         if not api_key:
             raise ValueError(
@@ -102,7 +102,7 @@ class RAGPipeline:
         self.groq_client = Groq(api_key=api_key)
 
         self._initialized = True
-        print("✓ RAG Pipeline ready!")
+        print("✓ RAG Pipeline ready!", flush=True)
 
     # ------------------------------------------------------------------
     # Vector store
@@ -110,13 +110,13 @@ class RAGPipeline:
     def _build_vectorstore(self):
         """Create the Chroma vector DB from the PDF, or load existing one."""
         if os.path.exists(VECTOR_DB_DIR) and os.listdir(VECTOR_DB_DIR):
-            print("  → Loading existing vector database...")
+            print("  → Loading existing vector database...", flush=True)
             self.vectorstore = Chroma(
                 persist_directory=VECTOR_DB_DIR,
                 embedding_function=self.embedding_model,
             )
         else:
-            print("  → Creating vector database from PDF (first-time setup)...")
+            print("  → Creating vector database from PDF (first-time setup)...", flush=True)
             if not os.path.exists(PDF_PATH):
                 raise FileNotFoundError(
                     f"PDF not found at {PDF_PATH}. "
@@ -131,7 +131,7 @@ class RAGPipeline:
                 chunk_overlap=CHUNK_OVERLAP,
             )
             document_chunks = loader.load_and_split(text_splitter)
-
+            print(f"  → PDF split into {len(document_chunks)} chunks. Creating embeddings...", flush=True)
             # Create vector store
             os.makedirs(VECTOR_DB_DIR, exist_ok=True)
             self.vectorstore = Chroma.from_documents(
