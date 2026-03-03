@@ -34,7 +34,7 @@ CHUNK_OVERLAP = 128
 ENCODING_NAME = "cl100k_base"
 
 # Embedding model
-EMBEDDING_MODEL_NAME = "BAAI/bge-base-en-v1.5"
+EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
 
 # Retrieval settings
 TOP_K = 3

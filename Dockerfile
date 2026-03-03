@@ -15,4 +15,5 @@ EXPOSE 8000
 ENV PORT=8000
 
 # Start the server
-CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT}"]
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT} --timeout-keep-alive 300"]
+
