@@ -93,13 +93,13 @@ class RAGPipeline:
         self._build_vectorstore()
 
         print("[3/3] Connecting to Groq API...", flush=True)
-        api_key = os.environ.get("GROQ_API_KEY")
-        if not api_key:
-            raise ValueError(
-                "GROQ_API_KEY environment variable is not set. "
-                "Get a free key at https://console.groq.com"
-            )
-        self.groq_client = Groq(api_key=api_key)
+        api_key = os.environ.get("GROQ_API_KEY", "")
+        if api_key:
+            self.groq_client = Groq(api_key=api_key)
+            print("  → Groq API key found and client created.", flush=True)
+        else:
+            print("  → GROQ_API_KEY not found at startup, will check at query time.", flush=True)
+
 
         self._initialized = True
         print("✓ RAG Pipeline ready!", flush=True)
@@ -162,6 +162,12 @@ class RAGPipeline:
             dict with keys: 'answer', 'sources' (list of retrieved chunk texts)
         """
         if not self._initialized:
+            # Lazy-load Groq client if not set during startup
+            if not self.groq_client:
+                api_key = os.environ.get("GROQ_API_KEY")
+                if not api_key:
+                    return {"answer": "Error: GROQ_API_KEY is not set.", "sources": []}
+                self.groq_client = Groq(api_key=api_key)
             raise RuntimeError("Pipeline not initialized. Call initialize() first.")
 
         # 1. Retrieve relevant document chunks
