@@ -26,7 +26,7 @@ VECTOR_DB_DIR = os.path.join(DATA_DIR, "medical_db")
 PDF_PATH = os.path.join(DATA_DIR, "medical_diagnosis_manual.pdf")
 
 # Groq model (same Mistral model family, but run via API)
-GROQ_MODEL = "mixtral-8x7b-32768"
+GROQ_MODEL = "llama-3.3-70b-versatile"
 
 # Chunking settings
 CHUNK_SIZE = 512
